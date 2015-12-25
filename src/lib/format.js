@@ -10,13 +10,56 @@ const
 	regex = /(:[\w]+)/g;
 
 
-class UrlFormat
+
+class Formatter
+{
+	static mix(fragment, args)
+	{
+		epic.each(args, (e, i) =>
+		{
+			if (epic.typeof(e) === 'object')
+			{
+
+			}
+
+		});
+	}
+
+	static object(map, context, arg)
+	{
+		Object.keys(arg).forEach(e =>
+		{
+			if (this.key(context, map.get(e), e, arg[e]))
+				delete arg[e];
+		});
+
+	}
+
+
+	static key(context, indexs, key, val)
+	{
+		if (!indexs) return false;
+		indexs.forEach(e => context[e] = context[e].txt + val);
+		return true;
+	}
+
+}
+
+class Url
 {
 	constructor(url)
 	{
-		this.fragment = [];
-		this.original = url;
+		this.context = {url: url, fragment: [], key: new Map()};
 		this.analyzer(url);
+	}
+
+	keyInit()
+	{
+		this.context.fragment.forEach((e, i) =>
+		{
+			if (!e.key || !e.key.length) return;
+			this.context.key.has(e.key) && this.context.key.get(e.key).push(i) || this.context.key.set(e.key, [i]);
+		});
 	}
 
 	analyzer(url)
@@ -24,85 +67,97 @@ class UrlFormat
 		let match, index = 0;
 		while(match = regex.exec(url))
 		{
-			this.fragment.push({key:match[0].substr(1), txt: url.substring(index, match.index)});
+			this.context.fragment.push({key:match[0].substr(1), txt: url.substring(index, match.index)});
 			index = match.index + match[0].length;
 		}
+
+		if (index === 0) return;
+		
+
+		if (index !== url.length)
+			this.context.fragment.push({txt: url.substr(index)});
+
+		this.keyInit();
 	}
 
-	format(args)
+	// object 有限匹配, 然后匹配 数组
+	format(args, fn)
 	{
-		switch(epic.typeof(args))
+		if (this.context.fragment.length === 0) return this.context.original;
+		if (args === undefined || args === null) return this.empty();
+		if (Array.isArray(args) && args.length === 0) return this.empty();
+
+		let
+			result = slice.call(this.context.fragment),
+			// 命名对象
+			named = [],
+			// 顺序对象
+			sequence = [],
+			// 删除的属性
+			removed = [];
+
+		epic.each(args, e => (epic.typeof(e) === 'object' ? named : sequence).push(e));
+
+
+		let matchs;
+		named.forEach(e =>
 		{
-			case 'string':
-				return this.formatArray([args]);
-				break;
-			case 'array':
-				return this.formatArray(args);
-				break;
-			case 'object':
-				return this.formatObject(args);
-				break;
-			default:
-				return this.empty();
-				break;
-		}
+			for(let key in e)
+			{
+				matchs = this.context.key.get(key);
+				if (!matchs) continue;
+				matchs.forEach(i => result[i] = result[i].txt + e[key]);
+				removed.push(key);
+			}
+		});
+
+		let index = 0;
+		result.forEach((e, i) =>
+		{
+			if (!e.hasOwnProperty('txt')) return;
+			if (sequence.length > 0 && index < sequence.length)
+			{
+				if (e.key)
+				{
+					this.context.key.get(e.key).forEach(i => result[i] = e.txt + sequence[index]);
+					removed.push(e.key);
+				}
+				else
+					result[i] = e.txt + sequence[index];
+				
+				index++;
+			}
+			else
+				result[i] = e.txt;
+		});
+
+
+		if (fn)
+			return fn(Url.combine(result), removed);
+
+		return Url.combine(result);
 	}
+
 
 	empty()
 	{
-		return this.fragment.map(e => e.txt).join('');
+		if (!this.context.empty)
+			this.context.empty = this.fragment.map(e => e.txt).join('');
+		return this.context.empty;
 	}
 
-	// array[string]
-	formatArray(args)
+	static parse(url, args, fn)
 	{
-		let result = '', len = args.length;
+		if (arguments.length === 1 && Array.isArray(url))
+			this.parse(arguments[0], slice.call(arguments, 1));
 
-		this.fragment.forEach((val, i) =>
+		if (arguments.length > 3)
 		{
-			if (len > i)
-				result += val.txt + args[i];
+			if (typeof(arguments[arguments.length - 1]) === 'function')
+				return this.parse(url, slice.call(arguments, 1, arguments.length - 1), arguments[arguments.length - 1]);
 			else
-				result += val.txt;
-		});
-		return result;
-	}
-
-	// object
-	formatObject(args)
-	{
-		let result = '';
-		this.fragment.forEach((val, i) =>
-		{
-			if (args.hasOwnProperty(val.key))
-				result += val.txt + args[val.key];
-			else
-				result += val.txt;
-		});
-		return result;
-	}
-
-	static parse(url, args)
-	{
-		if (arguments.length === 1)
-		{
-			switch(epic.typeof(url))
-			{
-				case 'string':
-					return url;
-					break;
-				case 'array':
-					return this.parse(arguments[0], slice.call(arguments, 1));
-					break;
-				default:
-					throw new Error('unsupport format: ', epic.typeof(url));
-					break;
-			}
+				return this.parse(url, slice.call(arguments, 1));
 		}
-
-
-		if (arguments.length > 2)
-			return this.parse(url, slice.call(arguments, 1));
 
 
 		if (!cache.has(url))
@@ -113,6 +168,9 @@ class UrlFormat
 
 	static combine()
 	{
+		if (arguments.length === 1 && Array.isArray(arguments[0]))
+			return this.combine.apply(null, arguments[0]);
+
 		return reduce.call(arguments, (previous, current) =>
 		{
 			if (previous === undefined || previous === null) return current || '';
@@ -130,8 +188,25 @@ class UrlFormat
 	}
 }
 
-exports.parse = UrlFormat.parse;
-exports.combine = UrlFormat.combine;
+
+
+// url: /users/:id/login/:id
+
+let context = [{key:'id', txt:'/user/'}, {key:'id', txt:'/login/'}];
+
+let f = new Url('/users/:id/login/:userid/noop');
+
+let a = {id:2};
+console.log(f.format(a));
+
+return;
+
+
+
+
+
+exports.parse = Url.parse;
+exports.combine = Url.combine;
 
 
 
