@@ -81,7 +81,7 @@ class Url
 	}
 
 	// object 有限匹配, 然后匹配 数组
-	format(args, fn)
+	format(args, isDelete)
 	{
 		if (this.context.fragment.length === 0) return this.context.original;
 		if (args === undefined || args === null) return this.empty();
@@ -92,12 +92,13 @@ class Url
 			// 命名对象
 			named = [],
 			// 顺序对象
-			sequence = [],
-			// 删除的属性
-			removed = [];
+			sequence = [];
 
-		epic.each(args, e => (epic.typeof(e) === 'object' ? named : sequence).push(e));
-
+		epic.each(args, e =>
+		{
+			if (e === undefined || e === null) return;
+			(epic.typeof(e) === 'object' ? named : sequence).push(e)
+		});
 
 		let matchs;
 		named.forEach(e =>
@@ -106,8 +107,9 @@ class Url
 			{
 				matchs = this.context.key.get(key);
 				if (!matchs) continue;
-				matchs.forEach(i => result[i] = result[i].txt + e[key]);
-				removed.push(key);
+				matchs.forEach(i => result[i] = result[i].txt + encodeURIComponent(e[key]));
+				if (isDelete)
+					delete e[key];
 			}
 		});
 
@@ -118,10 +120,7 @@ class Url
 			if (sequence.length > 0 && index < sequence.length)
 			{
 				if (e.key)
-				{
-					this.context.key.get(e.key).forEach(i => result[i] = e.txt + sequence[index]);
-					removed.push(e.key);
-				}
+					this.context.key.get(e.key).forEach(i => result[i].txt && (result[i] = result[i].txt + encodeURIComponent(sequence[index])));
 				else
 					result[i] = e.txt + sequence[index];
 				
@@ -131,9 +130,6 @@ class Url
 				result[i] = e.txt;
 		});
 
-
-		if (fn)
-			return fn(Url.combine(result), removed);
 
 		return Url.combine(result);
 	}
@@ -146,22 +142,36 @@ class Url
 		return this.context.empty;
 	}
 
-	static parse(url, args, fn)
+	static parseRef(url, args)
+	{
+		if (arguments.length === 1 && Array.isArray(url))
+			this.parseref(arguments[0], slice.call(arguments, 1));
+
+		if (arguments.length > 2)
+				return this.parseref(url, slice.call(arguments, 1));
+
+	if (url.lastIndexOf(':') === -1)
+		return url;
+
+		if (!cache.has(url))
+			cache.set(url, new Url(url));
+
+		return cache.get(url).format(args, true);
+	}
+
+	static parse(url, args)
 	{
 		if (arguments.length === 1 && Array.isArray(url))
 			this.parse(arguments[0], slice.call(arguments, 1));
 
-		if (arguments.length > 3)
-		{
-			if (typeof(arguments[arguments.length - 1]) === 'function')
-				return this.parse(url, slice.call(arguments, 1, arguments.length - 1), arguments[arguments.length - 1]);
-			else
+		if (arguments.length > 2)
 				return this.parse(url, slice.call(arguments, 1));
-		}
 
+	if (url.lastIndexOf(':') === -1)
+		return url;
 
 		if (!cache.has(url))
-			cache.set(url, new UrlFormat(url));
+			cache.set(url, new Url(url));
 
 		return cache.get(url).format(args);
 	}
@@ -191,24 +201,20 @@ class Url
 
 
 // url: /users/:id/login/:id
-
+/*
 let context = [{key:'id', txt:'/user/'}, {key:'id', txt:'/login/'}];
 
 let f = new Url('/users/:id/login/:userid/noop');
 
 let a = {id:2};
 console.log(f.format(a));
-
-return;
-
-
-
-
-
+*/
+exports.parseRef = Url.parseRef;
 exports.parse = Url.parse;
 exports.combine = Url.combine;
 
 
+//console.log(Url.parse('/login/:id', [ undefined, {} ]));
 
 /*
 

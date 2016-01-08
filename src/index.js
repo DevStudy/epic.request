@@ -2,4 +2,5 @@
 
 
 
-module.exports = require('./lib');
+module.exports = require('./lib/request');
+module.exports.format = require('./lib/url');
