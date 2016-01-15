@@ -188,10 +188,10 @@ class RequestContent extends Stream
 				let ret = '';
 				res.setEncoding('utf8');
 				res.on('data', chunk => ret += chunk);
-				res.on('end', () => done && done(null, {url:res.url || this.context.path, statusCode:res.statusCode, statusMessage:res.statusMessage, data:ret}));
+				res.on('end', () => done && done(null, {statusCode:res.statusCode, statusMessage:res.statusMessage, data:ret}));
 			});
 
-			req.on('error', e => done && done(null, {statusCode: -1, error: e}));
+			req.on('error', e => done && done(null, {statusCode: res.statusCode, error: e}));
 
 			if (data)
 				req.write(data);
@@ -211,17 +211,22 @@ class RequestContent extends Stream
 		{
 			try
 			{
-				result.data = JSON.parse(result.data);
+				return [JSON.parse(result.data), result.statusCode === 200 ? null : result.statusCode];
 			}
 			catch(e)
 			{
-				if (result.statusCode === 200)
-					result.statusCode = -1;
-				result.error = e;
-			}
+				if (result.error)
+					result.error.inner = e
+				else
+					result.error = e;
 
+				// 415 Unsupported Media Type
+				return [null, result.statusCode === 200 ? 415 : result.statusCode, result]
+
+			}
 		}
-		return result;
+
+		return [result, result.statusCode === 200 ? null : result.statusCode];
 	}
 
 	string()
