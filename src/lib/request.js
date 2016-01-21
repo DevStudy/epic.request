@@ -45,11 +45,11 @@ const parseFormData = function(context)
 		if (context.form.json)
 		{
 			result = context.form.json.map(e => epic.typeof(e) === 'string' ? e : JSON.stringify(e));
+
 			if (result.length === 1)
 				result = result[0];
 			else
 				result = '['+ result.join(',') +']';
-
 			context.headers['Content-Type'] = 'application/json';
 		}
 		else
@@ -62,7 +62,7 @@ const parseFormData = function(context)
 
 			context.headers['Content-Type'] = 'application/x-www-form-urlencoded';
 		}
-		context.headers['Content-Length'] = result.length;
+		context.headers['Content-Length'] = Buffer.byteLength(result, 'utf8');
 		return result;
 	}
 	
@@ -190,7 +190,7 @@ class RequestContent extends Stream
 				res.on('data', chunk => ret += chunk);
 				res.on('end', () => done && done(null, {statusCode:res.statusCode, statusMessage:res.statusMessage, data:ret}));
 			});
-
+			
 			req.on('error', e => done && done(null, {statusCode: res.statusCode, error: e}));
 
 			if (data)
