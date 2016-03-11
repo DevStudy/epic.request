@@ -50,7 +50,7 @@ const parseFormData = function(context)
 				result = result[0];
 			else
 				result = '['+ result.join(',') +']';
-			context.headers['Content-Type'] = 'application/json';
+			context.headers['Content-Type'] = 'application/json;charset=utf-8';
 		}
 		else
 		{
@@ -62,7 +62,9 @@ const parseFormData = function(context)
 
 			context.headers['Content-Type'] = 'application/x-www-form-urlencoded';
 		}
+
 		context.headers['Content-Length'] = Buffer.byteLength(result, 'utf8');
+
 		return result;
 	}
 	
@@ -225,8 +227,7 @@ class RequestContent extends Stream
 
 			}
 		}
-
-		return [result, result.statusCode === 200 ? null : result.statusCode];
+		return [null, result.statusCode === 200 ? null : result.statusCode];
 	}
 
 	string()
