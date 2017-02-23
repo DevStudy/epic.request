@@ -1,6 +1,6 @@
 {
   "name": "epic.request",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,12 +9,12 @@
   "author": "S",
   "license": "ISC",
   "dependencies": {
-    "debug": "^2.2.0",
-    "epic.util": "^1.0.0"
+    "debug": "*",
+    "epic.util": "*"
   },
   "devDependencies": {
-    "co": "^4.6.0",
-    "mocha": "^2.3.4",
-    "should": "^8.0.2"
+    "co": "*",
+    "mocha": "*",
+    "should": "*"
   }
 }
